@@ -1,8 +1,10 @@
 package jp.alhinc.calculate_sales;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -28,8 +30,10 @@ public class CalculateSales {
 	 * @param コマンドライン引数
 	 */
 	public static void main(String[] args) {
+
 		// 支店コードと支店名を保持するMap
 		Map<String, String> branchNames = new HashMap<>();
+
 		// 支店コードと売上金額を保持するMap
 		Map<String, Long> branchSales = new HashMap<>();
 
@@ -43,11 +47,12 @@ public class CalculateSales {
 		//コマンドライン引数で指定したディレクトリーのファイルをフルパスで配列に格納
 		File[] files = new File(args[0]).listFiles();
 
-		List<File> rcdFiles = new ArrayList<>(); //売上ファイル変数
+		//売上ファイルを保持するList
+		List<File> rcdFiles = new ArrayList<>();
 
 		for(int i = 0; i < files.length ; i++) {
 
-			String regex = "^\\d{8}\\.rcd$"; //数字8桁の後.rcdの拡張子で終わることを表す正規表現
+			String regex = "^\\d{8}\\.rcd$"; //数字8桁の後「.rcd」の拡張子で終わることを表す正規表現
 
 			//files[i].getName() でファイル名が取得できます。
 			if (files[i].getName().matches(regex)) {
@@ -56,9 +61,12 @@ public class CalculateSales {
 		}
 
 		//rcdFilesに複数の売上ファイルの情報を格納しているので、その数だけ繰り返します。
-
 		for(int i = 0; i < rcdFiles.size(); i++) {
-			List<String> branchCodeSalesList = new ArrayList<>(); //支店コード、売上格納する変数
+
+			//支店コード、売上を保持するList
+			List<String> branchCodeSalesList = new ArrayList<>();
+
+			//branchCodeSalesListのインデックス指定用
 			final int BRANCH_CODE_INDEX = 0; // 支店コード
 			final int SALES_INDEX = 1; // 売上金額
 
@@ -69,20 +77,17 @@ public class CalculateSales {
 			}
 
 			//売上ファイルから読み込んだ売上金額をMapに加算していくために、型の変換を行います。
-			//※詳細は後述で説明
 			long fileSale = Long.parseLong(branchCodeSalesList.get(SALES_INDEX));
 
+			//支店名を格納
 			String branchCode = branchCodeSalesList.get(BRANCH_CODE_INDEX);
 
 			//読み込んだ売上⾦額を加算します。
-			//※詳細は後述で説明
 			Long saleAmount = branchSales.get(branchCode) + fileSale;
 
 			//加算した売上⾦額をMapに追加します。
 			branchSales.put(branchCode,saleAmount);
 		}
-		System.out.println(branchSales);
-
 
 		// 支店別集計ファイル書き込み処理
 		if(!writeFile(args[0], FILE_NAME_BRANCH_OUT, branchNames, branchSales)) {
@@ -113,6 +118,7 @@ public class CalculateSales {
 			while((line = br.readLine()) != null) {
 				// ※ここの読み込み処理を変更してください。(処理内容1-2)
 
+				// 文字列を「,」で分割して文字列型の配列に格納
 				String[] items = line.split(",");
 				// items[0] 支店コード
 				// items[1] 支店名
@@ -146,27 +152,36 @@ public class CalculateSales {
 	 * @param 支店コードと売上金額を保持するMap
 	 * @return 読み込み可否
 	 */
-	private static boolean readSalesFile(File salesFilePath, Map<String, String> branchNames, Map<String, Long> branchSales, List<String> salesList) {
+	private static boolean readSalesFile(File salesFilePath, Map<String, String> branchNames, Map<String, Long> branchSales, List<String> branchCodeSalesList) {
 		BufferedReader br = null;
 
 		try {
-				FileReader fr = new FileReader(salesFilePath);
-				br = new BufferedReader(fr);
+			FileReader fr = new FileReader(salesFilePath);
+			br = new BufferedReader(fr);
 
-				String branchcode;
-				String sales;
+			String branchcode;
+			String sales;
 
-				// ファイルの中身が固定で2行のため、上から順に読み込む
-				branchcode = br.readLine();
-				sales = br.readLine();
+			// ファイルの中身が固定で2行のため、上から順に読み込む
+			branchcode = br.readLine();
+			sales = br.readLine();
 
-				salesList.add(branchcode);
-				salesList.add(sales);
+			branchCodeSalesList.add(branchcode);
+			branchCodeSalesList.add(sales);
 
 		} catch(IOException e){
-
+				//正常系の実装が完了してから着手
+		} finally {
+			//ファイルを開いている場合
+			if (br != null) {
+				try {
+					// ファイルを閉じる
+					br.close();
+				} catch(IOException e){
+					//正常系の実装が完了してから着手
+				}
+			}
 		}
-
 		return true;
 	}
 
@@ -181,8 +196,33 @@ public class CalculateSales {
 	 */
 	private static boolean writeFile(String path, String fileName, Map<String, String> branchNames, Map<String, Long> branchSales) {
 		// ※ここに書き込み処理を作成してください。(処理内容3-1)
+		BufferedWriter bw = null;
 
+		try {
+			File file = new File(path, fileName);
+			FileWriter fw = new FileWriter(file);
+			bw = new BufferedWriter(fw);
+
+			for (String key : branchNames.keySet()) {
+				//keyという変数には、Mapから取得したキーが代入されています。
+				//拡張for⽂で繰り返されているので、1つ⽬のキーが取得できたら、
+				//2つ⽬の取得...といったように、次々とkeyという変数に上書きされていきます。
+				bw.write(key + "," + branchNames.get(key) + "," + branchSales.get(key));
+				bw.newLine();
+			}
+
+		} catch(IOException e){
+			//正常系の実装が完了してから着手
+		} finally {
+			if(bw != null) {
+				try {
+					// ファイルを閉じる
+					bw.close();
+				} catch(IOException e) {
+					//正常系の実装が完了してから着手
+				}
+			}
+		}
 		return true;
 	}
-
 }
