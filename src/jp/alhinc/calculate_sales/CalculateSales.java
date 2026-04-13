@@ -7,6 +7,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +27,7 @@ public class CalculateSales {
 	private static final String FILE_NAME_NOT_SEQUENTIAL = "売上ファイル名が連番になっていません";
 	private static final String INVALID_DIGIT_COUNT = "合計金額が10桁を超えました";
 	private static final String BRANCH_CODE_NOT_EXIST = "%sの支店コードが不正です";
-	private static final String INVALID_FORMAT = "%sのフォーマットが不正です";
+	private static final String FILE_CONTENTS_INVALID_FORMAT = "%sのフォーマットが不正です";
 
 	/**
 	 * メインメソッド
@@ -36,7 +37,9 @@ public class CalculateSales {
 	public static void main(String[] args) {
 
 		// コマンドライン引数が渡されているか判定
-		if (args.length == 0) {
+		if (args.length != 1) {
+			//コマンドライン引数が1つ設定されていなかった場合は、
+		    //エラーメッセージをコンソールに表⽰します。
 			System.out.println(UNKNOWN_ERROR);
 			return;
 		}
@@ -60,28 +63,34 @@ public class CalculateSales {
 		//売上ファイルを保持するList
 		List<File> rcdFiles = new ArrayList<>();
 
-		// 連番になっているか判定する用の変数
-		int previousNumber = 0;
-		int currentNumber = 0;
-
 		for (int i = 0; i < files.length; i++) {
 
-			String regex = "^\\d{8}\\.rcd$"; //数字8桁の後「.rcd」の拡張子で終わることを表す正規表現
+			//数字8桁の後「.rcd」の拡張子で終わることを表す正規表現
+			String regex = "^\\d{8}\\.rcd$";
 
 			//files[i].getName() でファイル名が取得できます。
 			String fileName = files[i].getName();
-			if (fileName.matches(regex)) {
-				currentNumber = Integer.parseInt(fileName.substring(0,8));
-
-				if (currentNumber == previousNumber + 1) {
-					previousNumber = currentNumber;
-				}else {
-					System.out.println(FILE_NAME_NOT_SEQUENTIAL);
-					return;
-				}
-
+			if (files[i].isFile() && fileName.matches(regex)) {
 				//売上ファイルを売上ファイルリストに格納
 				rcdFiles.add(files[i]);
+			}
+		}
+
+		//連番チェックを⾏う前に、売上ファイルを保持しているListをソートする
+		Collections.sort(rcdFiles);
+
+		//⽐較回数は売上ファイルの数よりも1回少ないため、
+		//繰り返し回数は売上ファイルのリストの数よりも1つ⼩さい数です。
+		for(int i = 0; i < rcdFiles.size() -1; i++) {
+
+			int former = Integer.parseInt(rcdFiles.get(i).getName().substring(0, 8));
+			int latter = Integer.parseInt(rcdFiles.get(i + 1).getName().substring(0, 8));
+
+		    //⽐較する2つのファイル名の先頭から数字の8⽂字を切り出し、int型に変換します。
+			if((latter - former) != 1) {
+				//2つのファイル名の数字を⽐較して、差が1ではなかったら、
+				//エラーメッセージをコンソールに表⽰します。
+				System.out.println(FILE_NAME_NOT_SEQUENTIAL);
 			}
 		}
 
@@ -96,27 +105,29 @@ public class CalculateSales {
 				List<String> rcdFilesContentsList = new ArrayList<>();
 
 				String line;
-				int countLines = 0;
 
 				// 一行ずつ読み込む
 				while ((line = br.readLine()) != null) {
 					//支店定義ファイル読み込み(readFileメソッド)を参考に売上ファイルの中身を読み込みます。
 					//売上ファイルの1行目には支店コード、2行目には売上金額が入っています。
 					rcdFilesContentsList.add(line);
-					countLines++;
 				}
 
 				//売上ファイルの中身が2行であるか判定
-				if(countLines < 2) {
+				if(rcdFilesContentsList.size() != 2) {
 					String invalidFile = (rcdFiles.get(i).getName());
-					String errorMessage = String.format(INVALID_FORMAT, invalidFile);
+					String errorMessage = String.format(FILE_CONTENTS_INVALID_FORMAT, invalidFile);
 					System.out.println(errorMessage);
 					return;
 				}
 
-				//売上ファイルの売上金額が数字であるか判定
+				//支店コード、売上を保持するListから売上を取得
 				String InputSaleAmount = rcdFilesContentsList.get(1);
+
+				//数字だけで構成された文字列を表す正規表現
 				String regex = "^[0-9]*$";
+
+				//売上ファイルの売上金額が数字であるか判定
 				if(!InputSaleAmount.matches(regex)) {
 					System.out.println(UNKNOWN_ERROR);
 					return;
@@ -130,6 +141,9 @@ public class CalculateSales {
 
 				//売上ファイルの支店コードが支店定義ファイルに該当するか判定
 				if (!branchNames.containsKey(branchCode)) {
+
+				    //⽀店情報を保持しているMapに売上ファイルの⽀店コードが存在しなかった場合は、
+				    //エラーメッセージをコンソールに表⽰します。
 					String invalidFile = (rcdFiles.get(i).getName());
 					String errorMessage = String.format(BRANCH_CODE_NOT_EXIST, invalidFile);
 					System.out.println(errorMessage);
@@ -140,16 +154,18 @@ public class CalculateSales {
 				Long saleAmount = branchSales.get(branchCode) + fileSale;
 
 				//合計金額の桁数が10以内であることを判定
-				if (String.valueOf(saleAmount).length() > 10) {
+				if(saleAmount >= 10000000000L){
 					System.out.println(INVALID_DIGIT_COUNT);
 				}
 
 				//加算した売上⾦額をMapに追加します。
 				branchSales.put(branchCode, saleAmount);
 
-			} catch (IOException e) {
+			//売上ファイルの2行目が空の場合、NumberFormatExceptionが出たため、一応catchに追加
+			} catch (IOException | NumberFormatException e ) {
 				System.out.println(UNKNOWN_ERROR);
 				return;
+
 			} finally {
 				//ファイルを開いている場合
 				if (br != null) {
@@ -184,6 +200,8 @@ public class CalculateSales {
 
 		try {
 			File file = new File(path, fileName);
+
+			//支店定義ファイルが存在することかを確認
 			if(!file.exists()) {
 				System.out.println(FILE_NOT_EXIST);
 				return false;
@@ -196,19 +214,24 @@ public class CalculateSales {
 			while ((line = br.readLine()) != null) {
 				// ※ここの読み込み処理を変更してください。(処理内容1-2)
 
-				//数字3桁とカンマで始まり、その後にカンマを含まない文字列を表す正規表現（改行はreadLineで除外されるため記載不要）
-				String regex = "^\\d{3},[^,]*$";
-
-				if (!line.matches(regex)) {
-					System.out.println(FILE_INVALID_FORMAT);
-					return false;
-				}
-
 				// 文字列を「,」で分割して文字列型の配列に格納
 				String[] items = line.split(",");
 				// items[0] 支店コード
 				// items[1] 支店名
+
+				String regex = "^\\d{3}$"; //数字3桁の文字列を表す正規表現
+
+				if((items.length != 2) || (!items[0].matches(regex))){
+				    //⽀店定義ファイルの仕様が満たされていない場合、
+				    //エラーメッセージをコンソールに表⽰します。
+					System.out.println(FILE_INVALID_FORMAT);
+					return false;
+				}
+
+				//支店コード、支店名のMapに支店コード、支店名を格納
 				branchNames.put(items[0], items[1]);
+
+				//支店コード、売上のMapに支店コードと初期値０を格納
 				branchSales.put(items[0], 0L);
 			}
 
@@ -264,6 +287,7 @@ public class CalculateSales {
 		} catch (IOException e) {
 			System.out.println(UNKNOWN_ERROR);
 			return false;
+
 		} finally {
 			if (bw != null) {
 				try {
