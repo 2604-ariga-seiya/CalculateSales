@@ -104,7 +104,7 @@ public class CalculateSales {
 				//支店コード、売上を保持するList
 				List<String> rcdFilesContentsList = new ArrayList<>();
 
-				String line;
+				String line = "";
 
 				// 一行ずつ読み込む
 				while ((line = br.readLine()) != null) {
@@ -115,14 +115,24 @@ public class CalculateSales {
 
 				//売上ファイルの中身が2行であるか判定
 				if(rcdFilesContentsList.size() != 2) {
-					String invalidFile = (rcdFiles.get(i).getName());
-					String errorMessage = String.format(FILE_CONTENTS_INVALID_FORMAT, invalidFile);
-					System.out.println(errorMessage);
+					System.out.println(String.format(FILE_CONTENTS_INVALID_FORMAT, rcdFiles.get(i).getName()));
 					return;
 				}
 
+				//支店コードを格納
+				String branchCode = rcdFilesContentsList.get(0);
+
 				//支店コード、売上を保持するListから売上を取得
 				String InputSaleAmount = rcdFilesContentsList.get(1);
+
+				//売上ファイルの支店コードが支店定義ファイルに該当するか判定
+				if (!branchNames.containsKey(branchCode)) {
+
+				    //⽀店情報を保持しているMapに売上ファイルの⽀店コードが存在しなかった場合は、
+				    //エラーメッセージをコンソールに表⽰します。
+					System.out.println(String.format(BRANCH_CODE_NOT_EXIST, rcdFiles.get(i).getName()));
+					return;
+				}
 
 				//数字だけで構成された文字列を表す正規表現
 				String regex = "^[0-9]*$";
@@ -135,20 +145,6 @@ public class CalculateSales {
 
 				//売上ファイルから読み込んだ売上金額をMapに加算していくために、型の変換を行います。
 				long fileSale = Long.parseLong(InputSaleAmount);
-
-				//支店コードを格納
-				String branchCode = rcdFilesContentsList.get(0);
-
-				//売上ファイルの支店コードが支店定義ファイルに該当するか判定
-				if (!branchNames.containsKey(branchCode)) {
-
-				    //⽀店情報を保持しているMapに売上ファイルの⽀店コードが存在しなかった場合は、
-				    //エラーメッセージをコンソールに表⽰します。
-					String invalidFile = (rcdFiles.get(i).getName());
-					String errorMessage = String.format(BRANCH_CODE_NOT_EXIST, invalidFile);
-					System.out.println(errorMessage);
-					return;
-				}
 
 				//読み込んだ売上⾦額を加算します。
 				Long saleAmount = branchSales.get(branchCode) + fileSale;
