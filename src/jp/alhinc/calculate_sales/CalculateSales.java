@@ -41,7 +41,9 @@ public class CalculateSales {
 	private static final String FILE_NAME_NOT_SEQUENTIAL = "売上ファイル名が連番になっていません";
 	private static final String INVALID_DIGIT_COUNT = "合計金額が10桁を超えました";
 	private static final String BRANCH_CODE_NOT_EXIST = "%sの支店コードが不正です";
+	private static final String COMMODITY_CODE_NOT_EXIST = "%sの商品コードが不正です";
 	private static final String FILE_CONTENTS_INVALID_FORMAT = "%sのフォーマットが不正です";
+	private static final String UNKNOWN_TYPE_ERROR = "引数typeにはBRANCHまたはCOMMODITYを指定してください。";
 
 	// 正規表現
 	private static final String BRANCH_CODE_PATTERN = "^\\d{3}$"; //数字3桁
@@ -168,7 +170,13 @@ public class CalculateSales {
 				}
 
 				//売上ファイルの商品コードが商品定義ファイルに該当するか判定
-				//後でif文でエラー処理書く
+				if (!commodityNames.containsKey(commodityCode)) {
+
+				    //商品情報を保持しているMapに売上ファイルの商品コードが存在しなかった場合は、
+				    //エラーメッセージをコンソールに表⽰します。
+					System.out.println(String.format(COMMODITY_CODE_NOT_EXIST, rcdFiles.get(i).getName()));
+					return;
+				}
 
 				String regex = PRICE_PATTERN;
 
@@ -182,21 +190,22 @@ public class CalculateSales {
 				long fileSale = Long.parseLong(InputSaleAmount);
 
 				//読み込んだ支店別の売上⾦額を加算します。
-				Long saleAmount = branchSales.get(branchCode) + fileSale;
+				Long branchSaleAmount = branchSales.get(branchCode) + fileSale;
 
-				//合計金額の桁数が10以内であることを判定
-				if(saleAmount >= 10000000000L){
+				//読み込んだ商品別の売上⾦額を加算します。
+				Long commoditySaleAmount = commoditySales.get(commodityCode) + fileSale;
+
+				//それぞれの合計金額の桁数が10以内であることを判定
+				if(commoditySaleAmount >= 10000000000L | branchSaleAmount >= 10000000000L){
 					System.out.println(INVALID_DIGIT_COUNT);
+					return;
 				}
 
 				//加算した支店別の売上⾦額をMapに追加します。
-				branchSales.put(branchCode, saleAmount);
-
-				//読み込んだ商品別の売上⾦額を加算します。
-				saleAmount = commoditySales.get(commodityCode) + fileSale;
+				branchSales.put(branchCode, branchSaleAmount);
 
 				//加算した商品別の売上⾦額をMapに追加します。
-				commoditySales.put(commodityCode, saleAmount);
+				commoditySales.put(commodityCode, commoditySaleAmount);
 
 			//売上ファイルの2行目が空の場合、NumberFormatExceptionが出たため、一応catchに追加
 			} catch (IOException | NumberFormatException e ) {
@@ -257,12 +266,16 @@ public class CalculateSales {
 			notFoundMessage = COMMODITY_FILE_NOT_EXIST;
 			validationErrorMessage = COMMODITY_FILE_INVALID_FORMAT;
 			break;
+
+		default:
+			System.out.println(UNKNOWN_TYPE_ERROR);
+			return false;
 		}
 
 		try {
 			File file = new File(path, fileName);
 
-			//支店定義ファイルが存在することかを確認
+			//定義ファイルが存在することを確認
 			if(!file.exists()) {
 				System.out.println(notFoundMessage);
 				return false;
