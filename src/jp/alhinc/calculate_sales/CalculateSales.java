@@ -28,10 +28,8 @@ public class CalculateSales {
 
 	// エラーメッセージ
 	private static final String UNKNOWN_ERROR = "予期せぬエラーが発生しました";
-	private static final String BRANCH_FILE_NOT_EXIST = "支店定義ファイルが存在しません";
-	private static final String BRANCH_FILE_INVALID_FORMAT = "支店定義ファイルのフォーマットが不正です";
-	private static final String COMMODITY_FILE_NOT_EXIST ="商品定義ファイルが存在しません";
-	private static final String COMMODITY_FILE_INVALID_FORMAT ="商品定義ファイルのフォーマットが不正です";
+	private static final String FILE_NOT_EXIST ="%sファイルが存在しません";
+	private static final String FILE_INVALID_FORMAT ="%sファイルのフォーマットが不正です";
 	private static final String FILE_NAME_NOT_SEQUENTIAL = "売上ファイル名が連番になっていません";
 	private static final String INVALID_DIGIT_COUNT = "合計金額が10桁を超えました";
 	private static final String BRANCH_CODE_NOT_EXIST = "%sの支店コードが不正です";
@@ -72,12 +70,12 @@ public class CalculateSales {
 		Map<String, Long> commoditySales = new HashMap<>();
 
 		// 支店定義ファイル読み込み処理
-		if (!readFile(args[0], FILE_NAME_BRANCH_LST, branchNames, branchSales, BRANCH_CODE_PATTERN, BRANCH_FILE_NOT_EXIST, BRANCH_FILE_INVALID_FORMAT)) {
+		if (!readFile(args[0], FILE_NAME_BRANCH_LST, branchNames, branchSales, BRANCH_CODE_PATTERN, "支店定義")) {
 			return;
 		}
 
 		// 商品定義ファイル読み込み処理
-		if (!readFile(args[0], FILE_NAME_COMMODITY_LST, commodityNames, commoditySales, COMMODITY_CODE_PATTERN, COMMODITY_FILE_NOT_EXIST, COMMODITY_FILE_INVALID_FORMAT)) {
+		if (!readFile(args[0], FILE_NAME_COMMODITY_LST, commodityNames, commoditySales, COMMODITY_CODE_PATTERN, "商品定義")) {
 			return;
 		}
 
@@ -91,11 +89,9 @@ public class CalculateSales {
 
 		for (int i = 0; i < files.length; i++) {
 
-			String regex = SALES_FILE_NAME_PATTERN;
-
 			//files[i].getName() でファイル名が取得できます。
 			String fileName = files[i].getName();
-			if (files[i].isFile() && fileName.matches(regex)) {
+			if (files[i].isFile() && fileName.matches(SALES_FILE_NAME_PATTERN)) {
 				//売上ファイルを売上ファイルリストに格納
 				rcdFiles.add(files[i]);
 			}
@@ -236,7 +232,7 @@ public class CalculateSales {
 	 * @param 支店コードと売上金額を保持するMap
 	 * @return 読み込み可否
 	 */
-	private static boolean readFile(String path, String fileName, Map<String, String> subjectNames, Map<String, Long> subjectSales, String regex, String notFoundMessage, String validationErrorMessage) {
+	private static boolean readFile(String path, String fileName, Map<String, String> subjectNames, Map<String, Long> subjectSales, String regex, String definition) {
 		BufferedReader br = null;
 
 		try {
@@ -244,7 +240,7 @@ public class CalculateSales {
 
 			//定義ファイルが存在することを確認
 			if(!file.exists()) {
-				System.out.println(notFoundMessage);
+				System.out.println(String.format(FILE_NOT_EXIST, definition));
 				return false;
 			}
 			FileReader fr = new FileReader(file);
@@ -263,7 +259,7 @@ public class CalculateSales {
 				if((items.length != 2) || (!items[0].matches(regex))){
 				    //⽀店定義ファイルの仕様が満たされていない場合、
 				    //エラーメッセージをコンソールに表⽰します。
-					System.out.println(validationErrorMessage);
+					System.out.println(String.format(FILE_INVALID_FORMAT, definition));
 					return false;
 				}
 
